@@ -1,4 +1,4 @@
-module greenlight.liliang.com
+module github.com/liliang-cn/greenlight
 
 go 1.17
 

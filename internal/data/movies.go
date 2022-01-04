@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/lib/pq"
-	"greenlight.liliang.com/internal/validator"
+	"github.com/liliang-cn/greenlight/internal/validator"
 	"time"
 )
 

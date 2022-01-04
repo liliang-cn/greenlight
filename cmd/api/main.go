@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"greenlight.liliang.com/internal/data"
+	"github.com/liliang-cn/greenlight/internal/data"
 
 	_ "github.com/lib/pq"
 )

@@ -3,8 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"greenlight.liliang.com/internal/data"
-	"greenlight.liliang.com/internal/validator"
+	"github.com/liliang-cn/greenlight/internal/data"
+	"github.com/liliang-cn/greenlight/internal/validator"
 	"net/http"
 )
 
