@@ -37,17 +37,6 @@ func (v *Validator) Check(ok bool, key, message string) {
 	}
 }
 
-// In 当值在指定的列表中时返回 true
-func (v *Validator) In(value string, list ...string) bool {
-	for i := range list {
-		if value == list[i] {
-			return true
-		}
-	}
-
-	return false
-}
-
 // Matches 在传入值匹配正则的时候返回 true
 func (v *Validator) Matches(value string, rx *regexp.Regexp) bool {
 	return rx.MatchString(value)
@@ -62,4 +51,15 @@ func Unique(values []string) bool {
 	}
 
 	return len(values) == len(uniqueValues)
+}
+
+// In 当值在指定的列表中时返回 true
+func In(value string, list ...string) bool {
+	for i := range list {
+		if value == list[i] {
+			return true
+		}
+	}
+
+	return false
 }

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/liliang-cn/greenlight/internal/validator"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -43,7 +45,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
-func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error  {
+func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
 	// 使用 http.MaxBytesReader() 来限制请求体大小不超过1MB
 	maxBytes := 1_048_576
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
@@ -91,4 +93,44 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 	}
 
 	return nil
+}
+
+// readString 从 url 的 querystring 中提取字符
+func (app *application) readString(qs url.Values, key string, defaultString string) string {
+	// 没有值的话会返回 ""
+	s := qs.Get(key)
+
+	if s == "" {
+		return defaultString
+	}
+
+	return s
+}
+
+// readCSV 从 url 的 querystring 中提取逗号分隔的值
+func (app *application) readCSV(qs url.Values, key string, defaultValue []string) []string {
+	csv := qs.Get(key)
+
+	if csv == "" {
+		return defaultValue
+	}
+
+	return strings.Split(csv, ",")
+}
+
+// readInt 从 url 的 querystring 中提取数值, 如果不能转换，Validator 中提示
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+	s := qs.Get(key)
+
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		v.AddError(key, "must be an integer value")
+		return defaultValue
+	}
+
+	return i
 }
