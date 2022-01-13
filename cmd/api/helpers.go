@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/liliang-cn/greenlight/internal/validator"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/liliang-cn/greenlight/internal/validator"
 )
 
 func (app *application) readIDParam(r *http.Request) (int64, error) {

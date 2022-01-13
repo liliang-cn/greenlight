@@ -5,14 +5,15 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/liliang-cn/greenlight/internal/jsonlog"
-
 	_ "github.com/lib/pq"
+
 	"github.com/liliang-cn/greenlight/internal/data"
+	"github.com/liliang-cn/greenlight/internal/jsonlog"
 )
 
 const version = "1.0.0"
@@ -63,6 +64,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.port),
+		ErrorLog:     log.New(logger, "", 0),
 		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
