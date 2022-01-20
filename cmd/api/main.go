@@ -71,11 +71,13 @@ func main() {
 
 	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
+	// 连接数据库
 	db, err := openDB(cfg)
 	if err != nil {
 		logger.PrintFatal(err, nil)
 	}
 
+	// 退出前关闭数据库连接
 	defer db.Close()
 
 	logger.PrintInfo("database connection pool established", nil)
@@ -88,12 +90,14 @@ func main() {
 		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
+	// 启动 server
 	err = app.serve()
 	if err != nil {
 		logger.PrintFatal(err, nil)
 	}
 }
 
+// 连接数据库
 func openDB(cfg config) (*sql.DB, error) {
 	db, err := sql.Open("postgres", cfg.db.dsn)
 	if err != nil {

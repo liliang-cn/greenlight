@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"time"
@@ -10,8 +11,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var (
+	ErrDuplicateEmail = errors.New("duplicate email")
+)
+
 // User 用户结构体
-// `json:"-"`	不显示该字段
+// `json:"-"` 不显示该字段
 type User struct {
 	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -84,10 +89,6 @@ func ValidateUser(v *validator.Validator, user *User) {
 	}
 }
 
-var (
-	ErrDuplicateEmail = errors.New("duplicate email")
-)
-
 type UserModel struct {
 	DB *sql.DB
 }
@@ -121,6 +122,7 @@ func (m UserModel) Insert(user *User) error {
 	return nil
 }
 
+// GetByEmail 根据邮箱获取用户
 func (m UserModel) GetByEmail(email string) (*User, error) {
 	query := `
 		SELECT id, created_at, name, email, password_hash, activated, version
@@ -185,4 +187,45 @@ func (m UserModel) Update(user *User) error {
 	}
 
 	return nil
+}
+
+// GetForToken 根据 Token 获取 User
+func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error) {
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+
+	query := `
+		SELECT users.id, users.created_at, users.name, users.email, users.password_hash, users.activated, users.version
+		FROM users 
+		INNER JOIN tokens 
+		ON users.id = tokens.user_id
+		WHERE tokens.hash = $1
+		AND tokens.scope = $2
+		AND tokens.expiry > $3`
+
+	args := []interface{}{tokenHash[:], tokenScope, time.Now()}
+
+	var user User
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
 }
