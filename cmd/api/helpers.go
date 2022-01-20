@@ -14,6 +14,7 @@ import (
 	"github.com/liliang-cn/greenlight/internal/validator"
 )
 
+// readIDParam 从 URL 中读取 id
 func (app *application) readIDParam(r *http.Request) (int64, error) {
 	params := httprouter.ParamsFromContext(r.Context())
 	id, err := strconv.ParseInt(params.ByName("id"), 10, 64)
@@ -27,6 +28,7 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 // 将 json 内容添加一个父级字段
 type envelope map[string]interface{}
 
+// writeJSON 将JSON写入响应中
 func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
@@ -45,6 +47,7 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
+// readJSON 读取请求中的JSON
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
 	// 使用 http.MaxBytesReader() 来限制请求体大小不超过1MB
 	maxBytes := 1_048_576
@@ -133,4 +136,24 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 	}
 
 	return i
+}
+
+// background 通过 goroutine 执行传入函数，若发生 panic 中会恢复
+func (app *application) background(fn func()) {
+	// WaitGroup 计数加1
+	app.wg.Add(1)
+	// 运行后台 goroutine
+	go func() {
+		// goroutine 退出前 WaitGroup 计数减1
+		defer app.wg.Done()
+		// 恢复 panic
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.PrintError(fmt.Errorf("%s", err), nil)
+			}
+		}()
+
+		// 执行传入函数
+		fn()
+	}()
 }

@@ -53,7 +53,7 @@ func (f Filters) offset() int {
 	return (f.Page - 1) * f.PageSize
 }
 
-// 分页信息
+// Metadata 分页信息
 type Metadata struct {
 	CurrentPage  int `json:"current_page,omitempty"`
 	PageSize     int `json:"page_size,omitempty"`
