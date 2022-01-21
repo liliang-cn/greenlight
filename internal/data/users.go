@@ -15,6 +15,9 @@ var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 )
 
+// AnonymousUser 表示匿名用户
+var AnonymousUser = &User{}
+
 // User 用户结构体
 // `json:"-"` 不显示该字段
 type User struct {
@@ -25,6 +28,11 @@ type User struct {
 	Password  password  `json:"-"`
 	Activated bool      `json:"activated"`
 	Version   int       `json:"-"`
+}
+
+// IsAnonymous 检查 User 是否是匿名用户
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }
 
 // 用 *string 确定是否有传入值

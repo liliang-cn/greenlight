@@ -1,16 +1,21 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/liliang-cn/greenlight/internal/data"
+	"github.com/liliang-cn/greenlight/internal/validator"
 )
 
-// recoverPanic 从panic恢复
+// recoverPanic 从 panic 恢复
 func (app *application) recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -26,18 +31,6 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 
 // 限流
 func (app *application) rateLimiter(next http.Handler) http.Handler {
-	// 全局限流
-	// limiter := rate.NewLimiter(2, 4)
-	// return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 	// 调用 limiter.Allow() 来确定是否允许请求, 如果不允许，返回 429
-	// 	if !limiter.Allow() {
-	// 		app.rateLimitExceededResponse(w, r)
-	// 		return
-	// 	}
-
-	// 	next.ServeHTTP(w, r)
-	// })
-
 	// 定义一个客户结构体用来存放 限流器和最近一次使用时间
 	type client struct {
 		limiter  *rate.Limiter
@@ -88,16 +81,67 @@ func (app *application) rateLimiter(next http.Handler) http.Handler {
 
 			clients[ip].lastSeen = time.Now()
 
-			// 检查当前IP的Allow()方法, 如果不允许，将mutext锁解除并返回429
+			// 检查当前IP的Allow()方法, 如果不允许，将 mutex 锁解除并返回429
 			if !clients[ip].limiter.Allow() {
 				mu.Unlock()
 				app.rateLimitExceededResponse(w, r)
 				return
 			}
 
-			// 在这个中间件下游的所有处理程序都返回之前，mutex不会被解锁
+			// 在这个中间件下游的所有处理程序都返回之前，mutex 不会被解锁
 			mu.Unlock()
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// authenticate 认证
+func (app *application) authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 在 response 中添加 "Vary: Authorization" 头， 表示 cache 可能需要根据 Authorization 字段值而变化
+		w.Header().Add("Vary", "Authorization")
+
+		authorizationHeader := r.Header.Get("Authorization")
+
+		// 如果 请求中未包含 Authorization 则将 AnonymousUser 添加到请求的 context 中
+		// 然后调用 middleware 中的下一个请求处理函数
+		if authorizationHeader == "" {
+			r = app.contextSetUser(r, data.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// 请求头中有 Authorization 字段且值为 "Bearer <token>" 格式
+		headerParts := strings.Split(authorizationHeader, " ")
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// 提取请求体中的 token
+		token := headerParts[1]
+
+		// 校验 token 的格式
+		v := validator.New()
+		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// 根据 token 获取 user
+		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+		if err != nil {
+			switch {
+			case errors.Is(err, data.ErrRecordNotFound):
+				app.invalidAuthenticationTokenResponse(w, r)
+			default:
+				app.serverErrorResponse(w, r, err)
+			}
+			return
+		}
+
+		// 调用 contextSetUser() 将 user 信息添加到请求的 context 中
+		r = app.contextSetUser(r, user)
 		next.ServeHTTP(w, r)
 	})
 }

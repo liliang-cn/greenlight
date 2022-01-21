@@ -25,10 +25,10 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
-// 将 json 内容添加一个父级字段
+// 将 json 内容添加一个父级字段, 结构化返回 json
 type envelope map[string]interface{}
 
-// writeJSON 将JSON写入响应中
+// writeJSON 将 JSON 写入响应中
 func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
@@ -47,13 +47,13 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
-// readJSON 读取请求中的JSON
+// readJSON 读取请求中的 JSON
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
 	// 使用 http.MaxBytesReader() 来限制请求体大小不超过1MB
 	maxBytes := 1_048_576
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 
-	// 初始化 json.Decoder 后在decode前调用 DisallowUnknownFields() 方法
+	// 初始化 json.Decoder 后在 decode 前调用 DisallowUnknownFields() 方法
 	// 如果请求中包含不能被赋值给目标的字段，将会抛出错误，而不是忽略多余字段
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
