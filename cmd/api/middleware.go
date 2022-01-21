@@ -95,7 +95,7 @@ func (app *application) rateLimiter(next http.Handler) http.Handler {
 	})
 }
 
-// authenticate 认证
+// authenticate 认证中间件
 func (app *application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 在 response 中添加 "Vary: Authorization" 头， 表示 cache 可能需要根据 Authorization 字段值而变化
@@ -144,4 +144,61 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		r = app.contextSetUser(r, user)
 		next.ServeHTTP(w, r)
 	})
+}
+
+// requireAuthenticatedUser 检查用户是否匿名
+func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+
+		if user.IsAnonymous() {
+			app.authenticationRequiredResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+}
+
+// requireActivatedUser 检查用户激活且已经认证
+func (app *application) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 使用 contextGetUser() 从请求的context中获取用户信息
+		user := app.contextGetUser(r)
+
+		// 如果用户已认证但未激活
+		if !user.Activated {
+			app.inactiveAccountResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+
+	return app.requireAuthenticatedUser(fn)
+}
+
+// requirePermission 需要检查权限
+func (app *application) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		// 从 context 中获取用户
+		user := app.contextGetUser(r)
+
+		// 获取用户的权限
+		permissions, err := app.models.Permissions.GetAllForUser(user.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		// 检查权限列表中是否有需要的权限，如果没有，返回 403
+		if !permissions.Include(code) {
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	}
+
+	return app.requireActivatedUser(fn)
 }
