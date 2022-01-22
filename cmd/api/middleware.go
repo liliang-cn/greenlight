@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/liliang-cn/greenlight/internal/data"
 	"github.com/liliang-cn/greenlight/internal/validator"
+	"github.com/tomasen/realip"
 )
 
 // recoverPanic 从 panic 恢复
@@ -66,11 +66,7 @@ func (app *application) rateLimiter(next http.Handler) http.Handler {
 		if app.config.limiter.enabled {
 			// 处理中间件的每个请求都会执行next.ServeHTTP(w, r)之前的代码
 			// 从请求中提取客户端的IP地址
-			ip, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				app.serverErrorResponse(w, r, err)
-				return
-			}
+			ip := realip.FromRequest(r)
 
 			mu.Lock()
 
