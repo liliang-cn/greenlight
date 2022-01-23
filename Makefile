@@ -68,9 +68,14 @@ vendor:
 # ==================================================================================== #
 # BUILD
 # ==================================================================================== #
+
+current_time = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+git_description = $(shell git describe --always --dirty)
+linker_flags = '-s -X main.buildTime=${current_time} -X main.version=${git_description}'
+
 ## build/api: build the cmd/api application
 .PHONY: build/api
 build/api:
 	@echo 'Building cmd/api...'
-	go build -ldflags='-s' -o=./bin/api ./cmd/api
-	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd64/api ./cmd/api
+	go build -ldflags=${linker_flags} -o=./bin/api ./cmd/api
+	GOOS=linux GOARCH=amd64 go build -ldflags=${linker_flags} -o=./bin/linux_amd64/api ./cmd/api
